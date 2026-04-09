@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdio.h>
+#include <math.h>
 
 #ifndef NN_MALLOC
 #include <stdlib.h>
@@ -22,14 +23,18 @@ typedef struct
 } Mat;
 
 #define MAT_AT(m, i, j) ((m).es[(i) * (m).cols + (j)])
+#define MAT_PRINT(m) mat_print(m, #m);
+
 Mat mat_alloc(size_t rows, size_t cols);
 void mat_dot(Mat dst, Mat a, Mat b);
 void mat_sum(Mat dst, Mat a);
+void mat_sig(Mat m);
 void mat_fill(Mat m, float x);
 void mat_rand(Mat m, float low, float high);
-void mat_print(Mat m);
+void mat_print(Mat m, const char *name);
 
 float rand_float();
+float sigmoidf(float x);
 #endif // NN_H_
 
 #ifdef NN_IMPLEMENTATION
@@ -88,9 +93,25 @@ void mat_sum(Mat dst, Mat m)
     }
 }
 
+void mat_sig(Mat m)
+{
+    for (size_t i = 0; i < m.rows; i++)
+    {
+        for (size_t j = 0; j < m.cols; j++)
+        {
+            MAT_AT(m, i, j) = sigmoidf(MAT_AT(m, i, j));
+        }
+    }
+}
+
 float rand_float()
 {
     return (float)rand() / (float)RAND_MAX;
+}
+
+float sigmoidf(float x)
+{
+    return 1.f / (1.f + expf(-x));
 }
 
 void mat_rand(Mat m, float low, float high)
@@ -104,8 +125,9 @@ void mat_rand(Mat m, float low, float high)
     }
 }
 
-void mat_print(Mat m)
+void mat_print(Mat m, const char *name)
 {
+    printf("%s = [\n", name);
     for (size_t i = 0; i < m.rows; i++)
     {
         for (size_t j = 0; j < m.cols; j++)
@@ -114,6 +136,7 @@ void mat_print(Mat m)
         }
         printf("\n");
     }
+    printf("]\n");
 }
 
 #endif // NN_IMPLEMENTATION
