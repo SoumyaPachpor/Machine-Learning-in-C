@@ -74,8 +74,8 @@ float cost(Xor m)
     {
         float x1 = train_data[i][0];
         float x2 = train_data[i][1];
-        float y = forward(m, x1, x2);
-        float d = y - train_data[i][2];
+        float yp = forward(m, x1, x2);
+        float d = yp - train_data[i][2];
         result += d * d;
     }
     return result /= train_size;
