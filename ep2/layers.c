@@ -4,31 +4,18 @@
 
 typedef struct
 {
-    size_t count;
-    Mat *ws; // weights
-    Mat *bs; // biases
-    Mat *as; // the amount of activations will be count + 1
-} NN;
+    Mat a0, a1, a2;
+    Mat w1, b1;
+    Mat w2, b2;
+} Xor;
 
-#define ARRAY_LEN(xs) sizeof(xs) / sizeof(xs[0])
+float td[] = {
+    0, 0, 0,
+    0, 1, 1,
+    1, 0, 1,
+    1, 1, 0};
 
-NN nn_alloc(size_t* arch, size_t arch_count)
-{
-    NN m;
-    m.a0 = mat_alloc(1, 2);
-
-    m.w1 = mat_alloc(2, 2);
-    m.b1 = mat_alloc(1, 2);
-    m.a1 = mat_alloc(1, 2);
-
-    m.w2 = mat_alloc(2, 1);
-    m.b2 = mat_alloc(1, 1);
-    m.a2 = mat_alloc(1, 1);
-
-    return m;
-}
-
-float forward_nn(NN m)
+float forward_xor(Xor m)
 {
     mat_dot(m.a1, m.a0, m.w1);
     mat_sum(m.a1, m.b1);
@@ -40,7 +27,7 @@ float forward_nn(NN m)
     return *m.a2.es;
 }
 
-float cost(NN m, Mat ti, Mat to)
+float cost(Xor m, Mat ti, Mat to)
 {
     assert(ti.rows == to.rows);
     assert(to.cols == m.a2.cols);
@@ -54,7 +41,7 @@ float cost(NN m, Mat ti, Mat to)
         Mat y = mat_row(to, i);
 
         mat_copy(m.a0, x);
-        forward_nn(m);
+        forward_xor(m);
 
         size_t q = to.cols;
         for (size_t j = 0; j < q; j++)
@@ -66,7 +53,8 @@ float cost(NN m, Mat ti, Mat to)
     }
     return c / n;
 }
-void finite_diff(NN m, NN g, float eps, Mat ti, Mat to)
+
+void finite_diff(Xor m, Xor g, float eps, Mat ti, Mat to)
 {
     float c = cost(m, ti, to);
     for (size_t i = 0; i < m.w1.rows; i++)
@@ -110,8 +98,23 @@ void finite_diff(NN m, NN g, float eps, Mat ti, Mat to)
         }
     }
 }
+Xor xor_alloc()
+{
+    Xor m;
+    m.a0 = mat_alloc(1, 2);
 
-void nn_learn(NN m, NN g, float rate)
+    m.w1 = mat_alloc(2, 2);
+    m.b1 = mat_alloc(1, 2);
+    m.a1 = mat_alloc(1, 2);
+
+    m.w2 = mat_alloc(2, 1);
+    m.b2 = mat_alloc(1, 1);
+    m.a2 = mat_alloc(1, 1);
+
+    return m;
+}
+
+void xor_learn(Xor m, Xor g, float rate)
 {
     for (size_t i = 0; i < m.w1.rows; i++)
     {
@@ -162,30 +165,29 @@ int main(void)
         .stride = stride,
         .es = td + 2,
     };
+    size_t arch[] = {2, 2, 1};
+    NN nn = nn_alloc(arch, ARRAY_LEN(arch));
+    NN g = nn_alloc(arch, ARRAY_LEN(arch));
 
-    NN m = nn_alloc();
-    NN g = nn_alloc();
-
-    mat_rand(m.w1, 0, 1);
-    mat_rand(m.b1, 0, 1);
-    mat_rand(m.w2, 0, 1);
-    mat_rand(m.b2, 0, 1);
-    float eps = 1e-1;
+    nn_rand(nn, 0, 1);
+    nn_fill(g, 0);
+    float eps = 1e-2;
     float rate = 1;
-    for (size_t i = 0; i < 10 * 1000; i++)
+
+    for (size_t i = 0; i < 10000; i++)
     {
-        finite_diff(m, g, eps, ti, to);
-        nn_learn(m, g, rate);
-        printf("cost: %f\n", cost(m, ti, to));
+        nn_finite_diff(nn, g, eps, ti, to);
+        nn_learn(nn, g, rate);
+        // printf("%f\n", nn_cost(nn, ti, to));
     }
     for (size_t i = 0; i < 2; i++)
     {
         for (size_t j = 0; j < 2; j++)
         {
-            MAT_AT(m.a0, 0, 0) = i;
-            MAT_AT(m.a0, 0, 1) = j;
-            forward_nn(m);
-            printf("%zu ^ %zu = %f\n", i, j, MAT_AT(m.a2, 0, 0));
+            MAT_AT(NN_INPUT(nn), 0, 0) = i;
+            MAT_AT(NN_INPUT(nn), 0, 1) = j;
+            nn_forward(nn);
+            printf("%zu ^ %zu = %f\n", i, j, MAT_AT(NN_OUTPUT(nn), 0, 0));
         }
     }
     return 0;
